@@ -26,28 +26,6 @@ export const App = () => {
     setImages([]);
   };
 
-  // const getImages = () => {
-  //   fetchImages(value, pageNumber)
-  //     .then(res => {
-  //       if (res.hits.length === 0) {
-  //         Report.info(value, 'No images were found', 'Okay');
-  //         setStatus('resolved');
-  //         return;
-  //       }
-  //       setImages(prevState => [...prevState, ...res.hits]);
-  //       setPageNumber(prevState => prevState + 1);
-  //       setStatus('resolved');
-  //       setBtn(pageNumber < Math.ceil(res.totalHits / 12));
-  //     })
-
-  //     .catch(error => {
-  //       setError(error);
-  //       setStatus('rejected');
-  //     });
-
-  //   //
-  // };
-
   useEffect(() => {
     if (value) {
       setStatus('pending');
