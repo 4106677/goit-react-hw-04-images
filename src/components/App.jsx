@@ -2,109 +2,86 @@ import { GlobalStyle } from './GlobalStyles';
 import ImageGallery from './ImageGallery/ImageGallery';
 import { Searchbar } from './Searchbar/Searchbar';
 import { Div } from './App.styled';
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from './Modal/Modal';
+import { Report } from 'notiflix/build/notiflix-report-aio';
 
 import fetchImages from '../api/api';
 import { Button } from './Button/Button';
 
-export class App extends Component {
-  state = {
-    value: '',
-    pageNumber: 1,
-    images: [],
-    status: 'idle',
-    error: null,
-    showModal: false,
-    largeImageURL: '',
-    imageAlt: '',
-    showBtn: false,
+export const App = () => {
+  const [value, setValue] = useState('');
+  const [pageNumber, setPageNumber] = useState('1 ');
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState('null');
+  const [showModal, setModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [imageAlt, setImageAlt] = useState('');
+  const [showBtn, setBtn] = useState(false);
+  const [images, setImages] = useState([]);
+
+  const submitSearch = query => {
+    setValue(query);
+    setPageNumber(1);
+    setImages([]);
   };
 
-  submitSearch = ({ query }) => {
-    this.setState({
-      value: query,
-      pageNumber: 1,
-      images: [],
-    });
-  };
-
-  getImages = () => {
-    const { value, pageNumber } = this.state;
-
+  const getImages = () => {
     fetchImages(value, pageNumber)
       .then(res => {
-        this.setState(({ images, pageNumber, showBtn }) => ({
-          images: [...images, ...res.hits],
-          status: 'resolved',
-          showBtn: pageNumber < Math.ceil(res.totalHits / 12),
-        }));
+        if (res.hits.length === 0) {
+          Report.info(value, 'No images were found', 'Okay');
+          setStatus('resolved');
+          return;
+        }
+        setImages(prevState => [...prevState, ...res.hits]);
+        setPageNumber(prevState => prevState + 1);
+        setStatus('resolved');
+        setBtn(pageNumber < Math.ceil(res.totalHits / 12));
       })
 
-      .catch(error => this.setState({ error, status: 'rejected' }));
+      .catch(error => {
+        setError(error);
+        setStatus('rejected');
+      });
+
+    //
   };
 
-  onLoadMore = async () => {
-    await this.setState(({ pageNumber, showBtn }) => ({
-      pageNumber: pageNumber + 1,
-    }));
-  };
-
-  componentDidUpdate(_, prevState) {
-    const prevValue = prevState.value;
-    const nextValue = this.state.value;
-
-    if (
-      prevState.pageNumber !== this.state.pageNumber ||
-      prevValue !== nextValue
-    ) {
-      this.setState({ status: 'pending' });
-      this.getImages();
+  useEffect(() => {
+    if (value) {
+      setStatus('pending');
+      getImages();
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
-  onOpenModal = (url, alt) => {
-    this.setState({ largeImageURL: url, imageAlt: alt });
-
-    this.modalToggle();
+  const onOpenModal = (url, alt) => {
+    setLargeImageURL(url);
+    setImageAlt(alt);
+    modalToggle();
   };
 
-  modalToggle = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
+  const modalToggle = () => {
+    setModal(prevState => !prevState);
   };
 
-  render() {
-    const {
-      status,
-      error,
-      images,
-      largeImageURL,
-      imageAlt,
-      showModal,
-      showBtn,
-    } = this.state;
+  return (
+    <Div>
+      <Searchbar onSubmit={submitSearch} />
+      <ImageGallery
+        images={images}
+        error={error}
+        status={status}
+        onLoadMore={getImages}
+        onClick={onOpenModal}
+      />
+      {showBtn && <Button getImages={getImages} />}
 
-    return (
-      <Div>
-        <Searchbar onSubmit={this.submitSearch} />
-        <ImageGallery
-          images={images}
-          error={error}
-          status={status}
-          onLoadMore={this.onLoadMore}
-          onClick={this.onOpenModal}
-        />
-        {showBtn && <Button onLoadMore={this.onLoadMore} />}
-
-        {showModal && (
-          <Modal
-            src={largeImageURL}
-            alt={imageAlt}
-            onCloseModal={this.modalToggle}
-          />
-        )}
-        <GlobalStyle />
-      </Div>
-    );
-  }
-}
+      {showModal && (
+        <Modal src={largeImageURL} alt={imageAlt} onCloseModal={modalToggle} />
+      )}
+      <GlobalStyle />
+    </Div>
+  );
+};
